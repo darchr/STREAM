@@ -1,4 +1,4 @@
-CC = gcc-4.9
+CC = cc
 CFLAGS = -O2 -fopenmp
 
 FC = gfortran-4.9

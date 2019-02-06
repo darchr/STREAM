@@ -40,12 +40,22 @@
 /*     program constitutes acceptance of these licensing restrictions.   */
 /*  5. Absolutely no warranty is expressed or implied.                   */
 /*-----------------------------------------------------------------------*/
+
+/* Define this macro to get the O_DIRECT flag */
+#define _GNU_SOURCE
+
 # include <stdio.h>
 # include <unistd.h>
 # include <math.h>
 # include <float.h>
 # include <limits.h>
 # include <sys/time.h>
+
+/* For MMAP */
+# include <sys/mman.h>
+# include <fcntl.h>
+# include <sys/types.h>
+# include <sys/stat.h>
 
 /*-----------------------------------------------------------------------
  * INSTRUCTIONS:
@@ -176,9 +186,13 @@
 #define STREAM_TYPE double
 #endif
 
+#ifndef USE_MMAP
 static STREAM_TYPE	a[STREAM_ARRAY_SIZE+OFFSET],
 			b[STREAM_ARRAY_SIZE+OFFSET],
 			c[STREAM_ARRAY_SIZE+OFFSET];
+#else
+static STREAM_TYPE *a, *b, *c;
+#endif
 
 static double	avgtime[4] = {0}, maxtime[4] = {0},
 		mintime[4] = {FLT_MAX,FLT_MAX,FLT_MAX,FLT_MAX};
@@ -204,8 +218,7 @@ extern void tuned_STREAM_Triad(STREAM_TYPE scalar);
 #ifdef _OPENMP
 extern int omp_get_num_threads();
 #endif
-int
-main()
+int main( int argc, char * argv[] )
     {
     int			quantum, checktick();
     int			BytesPerWord;
@@ -262,6 +275,26 @@ main()
 		k++;
     printf ("Number of Threads counted = %i\n",k);
 #endif
+
+    /* Potentiall Create the arrays A, B, and C */
+#ifdef USE_MMAP
+    // Check if a file name was passed
+    char* file;
+    if (argc != 2) {
+        printf("Usage: ./stream <file-to-mmap>\n");
+        return 0;
+    } else {
+        file = argv[1];
+    }
+
+
+    int fd = open(file, O_RDWR | O_DIRECT, S_IRWXU);
+    STREAM_TYPE* base = mmap(NULL, 3 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+    a = base;
+    b = (base + STREAM_ARRAY_SIZE);
+    c = (base + 2 *  STREAM_ARRAY_SIZE);
+#endif
+
 
     /* Get initial value for system clock. */
 #pragma omp parallel for

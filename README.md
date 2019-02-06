@@ -1,3 +1,21 @@
+# STREAM
+
+This is a modified version of STREAM and provides a compiler+runtime option to a memory 
+mapped file as the storage medium for the throughput arrays instead of DRAM.
+
+Compiling this program as normal yields the standard STREAM program. To program with the
+memory mapped file option, use the command below.
+```
+gcc -mcmodel=large -DSTREAM_ARRAY_SIZE=10000000000 -O2 -fopenmp -DUSE_MMAP stream.c -o stream
+```
+Then, run the program.
+```
+./stream <path-to-mmap-file>
+```
+
+## Original README
+
+```
 ===============================================
 
 STREAM is the de facto industry standard benchmark
@@ -108,3 +126,4 @@ Virginia under the generous sponsorship of Professor Bill
 Wulf and Professor Alan Batson.
 
 ===============================================
+```
