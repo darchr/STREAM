@@ -194,17 +194,23 @@ static STREAM_TYPE	a[STREAM_ARRAY_SIZE+OFFSET],
 static STREAM_TYPE *a, *b, *c;
 #endif
 
-static double	avgtime[4] = {0}, maxtime[4] = {0},
-		mintime[4] = {FLT_MAX,FLT_MAX,FLT_MAX,FLT_MAX};
+#define NTESTS 5
+static double	avgtime[NTESTS] = {0}, maxtime[NTESTS] = {0},
+		mintime[NTESTS] = {FLT_MAX,FLT_MAX,FLT_MAX,FLT_MAX,FLT_MAX};
 
-static char	*label[4] = {"Copy:      ", "Scale:     ",
-    "Add:       ", "Triad:     "};
+static char	*label[NTESTS] = {
+    "Copy:      ", 
+    "Scale:     ",
+    "Add:       ", 
+    "Triad:     ", 
+    "Read:      "};
 
-static double	bytes[4] = {
+static double	bytes[NTESTS] = {
     2 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
     2 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
     3 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
-    3 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE
+    3 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
+    1 * sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE
     };
 
 extern double mysecond();
@@ -225,7 +231,7 @@ int main( int argc, char * argv[] )
     int			k;
     ssize_t		j;
     STREAM_TYPE		scalar;
-    double		t, times[4][NTIMES];
+    double		t, times[NTESTS][NTIMES];
 
     /* --- SETUP --- determine precision and check timing --- */
 
@@ -378,13 +384,22 @@ int main( int argc, char * argv[] )
 	    a[j] = b[j]+scalar*c[j];
 #endif
 	times[3][k] = mysecond() - times[3][k];
+
+    times[4][k] = mysecond();
+    STREAM_TYPE acc = (STREAM_TYPE)0;
+
+#pragma omp parallel for
+	for (j=0; j<STREAM_ARRAY_SIZE; j++)
+	    acc += c[j];
+
+    times[4][k] = mysecond() - times[4][k];
 	}
 
     /*	--- SUMMARY --- */
 
     for (k=1; k<NTIMES; k++) /* note -- skip first iteration */
 	{
-	for (j=0; j<4; j++)
+	for (j=0; j<NTESTS; j++)
 	    {
 	    avgtime[j] = avgtime[j] + times[j][k];
 	    mintime[j] = MIN(mintime[j], times[j][k]);
@@ -393,7 +408,7 @@ int main( int argc, char * argv[] )
 	}
     
     printf("Function    Best Rate MB/s  Avg time     Min time     Max time\n");
-    for (j=0; j<4; j++) {
+    for (j=0; j<NTESTS; j++) {
 		avgtime[j] = avgtime[j]/(double)(NTIMES-1);
 
 		printf("%s%12.1f  %11.6f  %11.6f  %11.6f\n", label[j],

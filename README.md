@@ -6,11 +6,16 @@ mapped file as the storage medium for the throughput arrays instead of DRAM.
 Compiling this program as normal yields the standard STREAM program. To program with the
 memory mapped file option, use the command below.
 ```
-gcc -mcmodel=large -DSTREAM_ARRAY_SIZE=10000000000 -O2 -fopenmp -DUSE_MMAP stream.c -o stream
+gcc -march=native -mtune=native -mcmodel=large -DSTREAM_ARRAY_SIZE=10000000000 -O3 -fopenmp -DUSE_MMAP stream.c -o stream
 ```
 Then, run the program.
 ```
 ./stream <path-to-mmap-file>
+```
+
+To run this program on specific numa nodes (helpful when using NVDIMMs), use `numactl`:
+```
+numactl --cpunodebind=0 --membind=0 ./stream [<path-to-mmap-file>]
 ```
 
 ## Original README
