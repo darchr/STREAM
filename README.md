@@ -3,10 +3,14 @@
 This is a modified version of STREAM and provides a compiler+runtime option to a memory 
 mapped file as the storage medium for the throughput arrays instead of DRAM.
 
-Compiling this program as normal yields the standard STREAM program. To program with the
-memory mapped file option, use the command below.
+Compiling this program as normal yields the standard STREAM program. 
 ```
-gcc -march=native -mtune=native -mcmodel=large -DSTREAM_ARRAY_SIZE=10000000000 -O3 -fopenmp -DUSE_MMAP stream.c -o stream
+gcc -march=native -mtune=native -mcmodel=large -DSTREAM_ARRAY_SIZE=100000000 -O3 -fopenmp stream.c -o stream
+```
+
+To program with the memory mapped file option, use the command below.
+```
+gcc -march=native -mtune=native -mcmodel=large -DSTREAM_ARRAY_SIZE=100000000 -O3 -fopenmp -DUSE_MMAP stream.c -o stream
 ```
 Then, run the program.
 ```
@@ -17,6 +21,12 @@ To run this program on specific numa nodes (helpful when using NVDIMMs), use `nu
 ```
 numactl --cpunodebind=0 --membind=0 ./stream [<path-to-mmap-file>]
 ```
+
+## Stream Repeated
+
+The original STREAM benchmark loops over the entire test suite. The program 
+`stream_repeated.c` instead loops over each individual test, which may yield different
+results depending on which system is being used.
 
 ## Original README
 
