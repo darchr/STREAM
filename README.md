@@ -28,6 +28,43 @@ The original STREAM benchmark loops over the entire test suite. The program
 `stream_repeated.c` instead loops over each individual test, which may yield different
 results depending on which system is being used.
 
+## Non-Temporal Stores
+
+If you look in the `cpp/` folder, you might find yet ANOTHER version of STREAM, this one
+using non-temporal store intrinsics which esentially bypass the cache. This is a more
+specialized benchmark meant to measure copy times from DRAM to persistent memory.
+
+### Setup
+
+I'm using this on a system with two NUMA nodes and with a single persistent memory region
+on each node. Follow the instructions below to replicate. NOTE: I'm using NUMA node 1 so
+none of the test code is running on CPU 0.
+```
+sudo ndctl destroy-namespace --force namespace1.0
+sudo ipmctl create -goal MemoryMode=0
+sudo reboot
+# after reboot
+sudo ndctl create-namespace --type=pmem --mode=fsdax --region=region1
+sudo mkfs.xfs -f /dev/pmem1
+sudo mount -o dax /dev/pmem1 /mnt
+# make some directories and files to be used by STREAM
+sudo mkdir /mnt/public
+sudo chmod 777 /mnt/public
+```
+
+I use the following to compile:
+```
+g++ -march=native -mtune=native -mcmodel=large -DSTREAM_ARRAY_SIZE=50000000 -O3 -fopenmp -DUSE_MMAP stream.cpp -lpmem -o stream
+```
+Finally, I use the following command to run
+```
+numactl --cpunodebind=1 --membind=1 ./stream /mnt/public/file.pmem
+```
+Finally, you can run with fewer CPUs using:
+```
+numactl --physcpubind=24-27 --membind=1 ./stream /mnt/public/file.pmem
+```
+
 ## Original README
 
 ```
