@@ -150,18 +150,28 @@ int main( int argc, char * argv[] )
     //    0
     //);
     //close(fd);
+    size_t mmap_size  = sizeof(STREAM_TYPE) * (STREAM_ARRAY_SIZE + 2 * ALIGNMENT);
+    size_t mapped_lenp;
+    int is_pmemp;
 
     void* mmap_ptr = pmem_map_file(
         file, 
-        sizeof(STREAM_TYPE) * (STREAM_ARRAY_SIZE + 2 * ALIGNMENT),
+        mmap_size,
         PMEM_FILE_CREATE, 
         0666, 
-        nullptr, 
-        nullptr
+        &mapped_lenp, 
+        &is_pmemp
     );
 
     B = (STREAM_TYPE*) roundup((size_t)(STREAM_TYPE*) mmap_ptr, ALIGNMENT);
 
+    std::cout << "Mapped Len: " << mapped_lenp << std::endl;
+    std::cout << "Is PMEM: " << is_pmemp << std::endl;
+    std::cout << "MMap Pointer: " << mmap_ptr << std::endl;
+    std::cout << "MMap length: " << mmap_size << std::endl;
+    std::cout << "B Pointer: " << B << std::endl;
+    std::cout << "Stream Array Size: " << STREAM_ARRAY_SIZE << std::endl;
+    printf("MMap: pmem_is_pmem: %i\n", pmem_is_pmem(mmap_ptr, mmap_size));
     printf("B: pmem_is_pmem: %i\n", pmem_is_pmem(B, STREAM_ARRAY_SIZE));
 
 #endif
