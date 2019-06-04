@@ -80,7 +80,7 @@ extern double mysecond();
 /////
 void do_write()
 {
-#pragma omp parallel for schedule(static, WRITE_CHUNK_SIZE)
+#pragma omp parallel for schedule(static)
     for(size_t j = 0; j < STREAM_ARRAY_SIZE; j++)
     {
         STREAM_TYPE x = _mm512_stream_load_si512(&A[j]);
