@@ -13,10 +13,6 @@
 #include <iostream>
 
 /* For MMAP */
-//#include <sys/mman.h>
-//#include <fcntl.h>
-//#include <sys/types.h>
-//#include <sys/stat.h>
 #include "libpmem.h"
 
 // IMM intrinsics
@@ -25,8 +21,6 @@
 #ifndef STREAM_ARRAY_SIZE
 #   define STREAM_ARRAY_SIZE	10000000
 #endif
-// Generally just want 4 threads running
-# define WRITE_CHUNK_SIZE STREAM_ARRAY_SIZE / 4
 
 #ifndef NTIMES
 #   define NTIMES	10
@@ -36,13 +30,7 @@
 #define STREAM_TYPE __m512i
 #endif
 
-# ifndef MIN
-# define MIN(x,y) ((x)<(y)?(x):(y))
-# endif
-# ifndef MAX
-# define MAX(x,y) ((x)>(y)?(x):(y))
-# endif
-
+// Static arrays for generating tests
 static STREAM_TYPE A[STREAM_ARRAY_SIZE];
 
 #ifndef USE_MMAP
@@ -58,27 +46,46 @@ size_t roundup(size_t a, size_t b)
     return (1 + (a - 1) / b) * b; 
 }
 
-#define NTESTS 2
+#define NTESTS 6
 static double avgtime[NTESTS] = {0};
 static double maxtime[NTESTS] = {0};
-static double mintime[NTESTS] = {FLT_MAX, FLT_MAX};
+static double mintime[NTESTS] = {FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX};
 extern int omp_get_num_threads();
 
-static char	*label[NTESTS] = {
-    "Read:      ",
-    "Write:     "};
+static std::string label[NTESTS] = {
+    "stream_to_remote: ",
+    "stream_to_local:  ",
+    "copy_to_remote:   ",
+    "copy_to_local::   ",
+    "Read:             ",
+    "Write:            "
+};
 
 static double	bytes[NTESTS] = {
+    sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
+    sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
+    sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
+    sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
     sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE,
     sizeof(STREAM_TYPE) * STREAM_ARRAY_SIZE
     };
 
 extern double mysecond();
 
+// Defeat the optimizer!!
+static void escape(void *p) {
+    asm volatile("" : : "g"(p) : "memory");
+}
+
+static void clobber() {
+    asm volatile("" : : : "memory");
+}
+
+
 /////
 ///// Define Kernel Functions
 /////
-void do_write()
+void copy_to_remote_stream()
 {
 #pragma omp parallel for schedule(static)
     for(size_t j = 0; j < STREAM_ARRAY_SIZE; j++)
@@ -88,7 +95,17 @@ void do_write()
     }
 }
 
-void do_read()
+void copy_to_remote()
+{
+#pragma omp parallel for schedule(static)
+    for(size_t j = 0; j < STREAM_ARRAY_SIZE; j++)
+    {
+        STREAM_TYPE x = _mm512_load_si512(&A[j]);
+        _mm512_store_si512(&B[j], x);
+    }
+}
+
+void copy_to_local_stream()
 {
 #pragma omp parallel for schedule(static)
     for(size_t j = 0; j < STREAM_ARRAY_SIZE; j++)
@@ -98,10 +115,43 @@ void do_read()
     }
 }
 
+void copy_to_local()
+{
+#pragma omp parallel for schedule(static)
+    for(size_t j = 0; j < STREAM_ARRAY_SIZE; j++)
+    {
+        STREAM_TYPE x = _mm512_load_si512(&B[j]);
+        _mm512_store_si512(&A[j], x);
+    }
+}
+
+void do_accumulate()
+{
+int s = 0;
+#pragma omp parallel for schedule(static)
+    for(size_t j=0; j < STREAM_ARRAY_SIZE; j++)
+    {
+        s += _mm512_reduce_add_epi32(B[j]); 
+    }
+    // Escape the int - keep it from being optimized away
+    escape(&s);
+}
+
+void do_zero()
+{
+STREAM_TYPE s = {0};
+#pragma omp parallel for schedule(static)
+    for(size_t j=0; j < STREAM_ARRAY_SIZE; j++)
+    {
+        _mm512_stream_si512(&B[j], s); 
+    }
+}
+
+
 
 int main( int argc, char * argv[] )
 {
-    printf ("Size of STREAM_TYPE = %u\n", sizeof(STREAM_TYPE));
+    std::cout << "Size of STREAM_TYPE = " << sizeof(STREAM_TYPE) << std::endl;
 
     int			quantum, checktick();
     int			BytesPerWord;
@@ -140,16 +190,6 @@ int main( int argc, char * argv[] )
         file = argv[1];
     }
 
-    //int fd = open(file, O_RDWR | O_DIRECT, S_IRWXU);
-    //void* mmap_ptr = mmap(
-    //    NULL,
-    //    3 * sizeof(STREAM_TYPE) * (STREAM_ARRAY_SIZE + 2 * ALIGNMENT),
-    //    PROT_WRITE | PROT_READ,
-    //    MAP_SHARED,
-    //    fd,
-    //    0
-    //);
-    //close(fd);
     size_t mmap_size  = sizeof(STREAM_TYPE) * (STREAM_ARRAY_SIZE + 2 * ALIGNMENT);
     size_t mapped_lenp;
     int is_pmemp;
@@ -183,13 +223,31 @@ int main( int argc, char * argv[] )
     {
         // Read Test
         times[0][k] = mysecond();
-        do_read();
+        copy_to_remote_stream();
         times[0][k] = mysecond() - times[0][k];
 
         // Write Test
         times[1][k] = mysecond();
-        do_write();
+        copy_to_local_stream();
         times[1][k] = mysecond() - times[1][k];
+
+        times[2][k] = mysecond();
+        copy_to_remote();
+        times[2][k] = mysecond() - times[2][k];
+
+        times[3][k] = mysecond();
+        copy_to_local();
+        times[3][k] = mysecond() - times[3][k];
+
+        // Read Test
+        times[4][k] = mysecond();
+        do_accumulate();
+        times[4][k] = mysecond() - times[4][k];
+
+        // Write Test
+        times[5][k] = mysecond();
+        do_zero();
+        times[5][k] = mysecond() - times[5][k];
     }
 
 
@@ -202,16 +260,17 @@ int main( int argc, char * argv[] )
 	for (j=0; j<NTESTS; j++)
 	    {
 	    avgtime[j] = avgtime[j] + times[j][k];
-	    mintime[j] = MIN(mintime[j], times[j][k]);
-	    maxtime[j] = MAX(maxtime[j], times[j][k]);
+	    mintime[j] = std::min(mintime[j], times[j][k]);
+	    maxtime[j] = std::max(maxtime[j], times[j][k]);
 	    }
 	}
 
+    printf("DATA\n");
     printf("Function    Best Rate MB/s  Avg time     Min time     Max time\n");
     for (j=0; j<NTESTS; j++) {
 		avgtime[j] = avgtime[j]/(double)(NTIMES-1);
 
-		printf("%s%12.1f  %11.6f  %11.6f  %11.6f\n", label[j],
+		printf("%s%12.1f  %11.6f  %11.6f  %11.6f\n", label[j].c_str(),
 	       1.0E-06 * bytes[j]/mintime[j],
 	       avgtime[j],
 	       mintime[j],
@@ -236,10 +295,8 @@ int checktick()
 
     for (i = 0; i < M; i++)
     {
-
         t1 = mysecond();
-        while( ((t2=mysecond()) - t1) < 1.0E-6 )
-            ;
+        while( ((t2=mysecond()) - t1) < 1.0E-6 );
 
         timesfound[i] = t1 = t2;
 	}
@@ -254,7 +311,7 @@ int checktick()
     for (i = 1; i < M; i++)
     {
         Delta = (int)( 1.0E6 * (timesfound[i]-timesfound[i-1]));
-        minDelta = MIN(minDelta, MAX(Delta,0));
+        minDelta = std::min(minDelta, std::max(Delta,0));
 	}
 
     return(minDelta);
