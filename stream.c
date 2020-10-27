@@ -58,6 +58,7 @@
 # include <sys/stat.h>
 
 #include "m5_mmap.h"
+#include "m5ops.h"
 /*-----------------------------------------------------------------------
  * INSTRUCTIONS:
  *
@@ -483,15 +484,15 @@ checktick()
 
 #include <sys/time.h>
 
-double mysecond()
-{
-        struct timeval tp;
-        struct timezone tzp;
-        int i;
+// double mysecond()
+// {
+//         struct timeval tp;
+//         struct timezone tzp;
+//         int i;
 
-        i = gettimeofday(&tp,&tzp);
-        return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
-}
+//         i = gettimeofday(&tp,&tzp);
+//         return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
+// }
 
 #ifndef abs
 #define abs(a) ((a) >= 0 ? (a) : -(a))
