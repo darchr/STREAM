@@ -57,6 +57,7 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 
+#include "m5_mmap.h"
 /*-----------------------------------------------------------------------
  * INSTRUCTIONS:
  *
@@ -114,7 +115,7 @@
  *         code using, for example, "-DNTIMES=7".
  */
 #ifdef NTIMES
-#if NTIMES<=1
+#if NTIMES<1
 #   define NTIMES	10
 #endif
 #endif
@@ -230,6 +231,7 @@ extern int omp_get_num_threads();
 #endif
 int main( int argc, char * argv[] )
     {
+	map_m5_mem();
     int			quantum, checktick();
     int			BytesPerWord;
     int			k;
@@ -359,6 +361,7 @@ int main( int argc, char * argv[] )
     for (k=0; k<NTIMES; k++)
 	{
 	times[0][k] = mysecond();
+	m5_work_begin(0,0);
 #ifdef TUNED
         tuned_STREAM_Copy();
 #else
@@ -366,6 +369,7 @@ int main( int argc, char * argv[] )
 	for (j=0; j<STREAM_ARRAY_SIZE; j++)
 	    c[j] = a[j];
 #endif
+	m5_work_end(0,0);
 	times[0][k] = mysecond() - times[0][k];
 
 	times[1][k] = mysecond();
