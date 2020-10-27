@@ -1,21 +1,19 @@
-# Makefile for the PARSEC hooks library
-#
-# Copyright (C) 2006-2009 by Princeton University
-# Author: Christian Bienia
-
 CC = cc
 NTIMES = 1
 CFLAGS = -O2
 TARGET = stream
 INCLUDEDIR = include
-OBJS = stream.lo m5op_x86.lo m5_mmap.lo
 M5CFLAGS? = -O2 -DM5OP_ADDR=0xFFFF0000 -DM5OP_PIC
+OBJS = stream.lo mysecond.lo m5op_x86.lo m5_mmap.lo
 
 all: $(OBJS)
 	ld $(OBJS) -o $(TARGET)
 
 stream.lo : stream.c
-	$(CC) $(CFLAGS) -I$(INCLUDEDIR) -DNTIMES=$(NTIMES) -lc --entry main -o $@ -c $<
+	$(CC) $(CFLAGS) -I$(INCLUDEDIR) -DNTIMES=$(NTIMES) -o $@ -c $<
+
+mysecond.lo : mysecond.c
+    $(CC) -o $@ -c $<
 
 m5op_x86.lo : m5op_x86.S
 	$(CC) -I$(INCLUDEDIR) $(M5CFLAGS) -o $@ -c $<
