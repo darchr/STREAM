@@ -1,18 +1,18 @@
-CC = cc
-LD = ld
+CC = gcc
+LD = gcc
 NTIMES = 1
-LDFLAGS = -lomp -lc
+LDFLAGS = -lomp -lc -fPIC
 TARGET = stream
 INCLUDEDIR = include
 CFLAGS = -O2 -fopenmp -D_OPENMP
 OBJS = stream.o mysecond.o m5op_x86.o m5_mmap.o
-M5CFLAGS? = -O2 -DM5OP_ADDR=0xFFFF0000 -DM5OP_PIC
+M5CFLAGS ?= -O2 -DM5OP_ADDR=0xFFFF0000 -DM5OP_PIC
 
 all: $(OBJS)
-	$(LD) $(OBJS) $(LDFLAGS) -o $(TARGET)
+	$(LD) $(OBJS) $(LDFLAGS) -DM5OP_ADDR=0xFFFF0000 -o $(TARGET)
 
 stream.o : stream.c
-	$(CC) $(CFLAGS) -I$(INCLUDEDIR) -DNTIMES=$(NTIMES) -o $@ -c $<
+	$(CC) $(CFLAGS) $(M5CFLAGS) -I$(INCLUDEDIR) -DNTIMES=$(NTIMES) -o $@ -c $<
 
 mysecond.o : mysecond.c
 	$(CC) -o $@ -c $<
