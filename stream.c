@@ -374,6 +374,7 @@ int main( int argc, char * argv[] )
 	times[0][k] = mysecond() - times[0][k];
 
 	times[1][k] = mysecond();
+	m5_work_begin(0,0);
 #ifdef TUNED
         tuned_STREAM_Scale(scalar);
 #else
@@ -381,9 +382,11 @@ int main( int argc, char * argv[] )
 	for (j=0; j<STREAM_ARRAY_SIZE; j++)
 	    b[j] = scalar*c[j];
 #endif
+	m5_work_end(0,0);
 	times[1][k] = mysecond() - times[1][k];
 
 	times[2][k] = mysecond();
+	m5_work_begin(0,0);
 #ifdef TUNED
         tuned_STREAM_Add();
 #else
@@ -391,9 +394,11 @@ int main( int argc, char * argv[] )
 	for (j=0; j<STREAM_ARRAY_SIZE; j++)
 	    c[j] = a[j]+b[j];
 #endif
+	m5_work_end(0,0);
 	times[2][k] = mysecond() - times[2][k];
 
 	times[3][k] = mysecond();
+	m5_work_begin(0,0);
 #ifdef TUNED
         tuned_STREAM_Triad(scalar);
 #else
@@ -401,6 +406,7 @@ int main( int argc, char * argv[] )
 	for (j=0; j<STREAM_ARRAY_SIZE; j++)
 	    a[j] = b[j]+scalar*c[j];
 #endif
+	m5_work_end(0,0);
 	times[3][k] = mysecond() - times[3][k];
 
     times[4][k] = mysecond();
